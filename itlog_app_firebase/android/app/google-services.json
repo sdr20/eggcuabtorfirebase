@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "120718043785",
+    "firebase_url": "https://itlog-database-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "itlog-database",
+    "storage_bucket": "itlog-database.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:120718043785:android:76f4bafbf2f4abb83c3458",
+        "android_client_info": {
+          "package_name": "com.example.itlog_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCr9bO9Hxao0VIstBR1nK0UWchlCIQSNhU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

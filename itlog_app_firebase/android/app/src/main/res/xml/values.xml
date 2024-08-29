@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="default_web_client_id">1:120718043785:web:745650168e458b983c3458</string>
+    <string name="firebase_database_url">https://itlog-database-default-rtdb.asia-southeast1.firebasedatabase.app/</string>
+    <string name="google_api_key">CeILOOLIMBl40yOhb1HeAZZC9cco3UAoTNQApXg7</string>
+    <string name="google_app_id">itlog-database</string>
+    <!-- Add other Firebase options here -->
+</resources>
