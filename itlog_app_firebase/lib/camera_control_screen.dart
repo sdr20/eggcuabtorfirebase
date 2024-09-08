@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter_vlc_player/flutter_vlc_player.dart';
 
 class CameraControlScreen extends StatefulWidget {
   @override
@@ -8,14 +9,21 @@ class CameraControlScreen extends StatefulWidget {
 
 class _CameraControlScreenState extends State<CameraControlScreen> {
   final DatabaseReference databaseReference = FirebaseDatabase.instance.ref();
-  
+
   double _panValue = 90;
   double _tiltValue = 90;
   bool _isLightOn = false; // Track the light state
 
+  late VlcPlayerController _vlcController;
+
   @override
   void initState() {
     super.initState();
+
+    _vlcController = VlcPlayerController.network(
+      'http://192.168.1.11:81/stream',
+      autoPlay: true,
+    );
 
     // Listen to changes in the light's state in Firebase
     databaseReference.child('light').onValue.listen((event) {
@@ -40,6 +48,12 @@ class _CameraControlScreenState extends State<CameraControlScreen> {
         _tiltValue = tiltValue.toDouble();
       });
     });
+  }
+
+  @override
+  void dispose() {
+    _vlcController.dispose();
+    super.dispose();
   }
 
   // Function to update the servo position
@@ -67,11 +81,9 @@ class _CameraControlScreenState extends State<CameraControlScreen> {
           Expanded(
             child: Container(
               color: Colors.black,
-              child: Center(
-                child: Text(
-                  'Camera Feed Here',
-                  style: TextStyle(color: Colors.white),
-                ),
+              child: VlcPlayer(
+                controller: _vlcController,
+                aspectRatio: 16 / 9,
               ),
             ),
           ),

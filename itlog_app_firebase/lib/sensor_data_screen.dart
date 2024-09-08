@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_gauges/gauges.dart';
 import 'sensor_data_provider.dart';
+import 'humidity_log_screen.dart';
+import 'temperature_log_screen.dart';
 
 class SensorDataScreen extends StatelessWidget {
   @override
@@ -15,45 +17,44 @@ class SensorDataScreen extends StatelessWidget {
             backgroundColor: Colors.transparent,
           ),
           body: ListView(
+            padding: const EdgeInsets.all(16.0),
             children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10.0),
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.5),
-                        spreadRadius: 5,
-                        blurRadius: 7,
-                        offset: Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  padding: EdgeInsets.all(20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildDigitalGauge(
-                        context,
-                        'Humidity',
-                        provider.humidity,
-                        provider.maxHumidity,
-                      ),
-                      SizedBox(height: 16),
-                      _buildDigitalGauge(
-                        context,
-                        'Temperature',
-                        provider.temperature,
-                        50.0,
-                        dangerThreshold: 39.0,
-                      ),
-                      SizedBox(height: 16),
-                      _buildSlider(context, provider),
-                    ],
-                  ),
+              _buildContainer(
+                context,
+                'Humidity',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => HumidityLogScreen()),
                 ),
+                _buildDigitalGauge(
+                  context,
+                  'Humidity',
+                  provider.humidity,
+                  provider.maxHumidity,
+                ),
+              ),
+              SizedBox(height: 16),
+              _buildContainer(
+                context,
+                'Temperature',
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => TemperatureLogScreen()),
+                ),
+                _buildDigitalGauge(
+                  context,
+                  'Temperature',
+                  provider.temperature,
+                  50.0,
+                  dangerThreshold: 39.0,
+                ),
+              ),
+              SizedBox(height: 16),
+              _buildContainer(
+                context,
+                'Swing Time',
+                null,
+                _buildSlider(context, provider),
               ),
             ],
           ),
@@ -62,15 +63,42 @@ class SensorDataScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildContainer(BuildContext context, String title, VoidCallback? onTap, Widget child) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10.0),
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.5),
+              spreadRadius: 5,
+              blurRadius: 7,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        padding: EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              title,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildDigitalGauge(BuildContext context, String label, double value, double max, {double? dangerThreshold}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        SizedBox(height: 8),
         Container(
           width: 160,
           height: 160,
@@ -117,15 +145,6 @@ class SensorDataScreen extends StatelessWidget {
                   thickness: 12,
                   color: Colors.blueGrey[200],
                 ),
-                majorTickStyle: MajorTickStyle(
-                  color: Colors.transparent,
-                ),
-                minorTickStyle: MinorTickStyle(
-                  color: Colors.transparent,
-                ),
-                labelsPosition: ElementsPosition.outside,
-                showTicks: false,
-                showLabels: false,
               ),
             ],
           ),
@@ -138,11 +157,6 @@ class SensorDataScreen extends StatelessWidget {
     return Column(
       children: [
         Text(
-          'Swing Time (per hour)',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        SizedBox(height: 10),
-        Text(
           '${provider.motorOperationTime.toStringAsFixed(1)} hours',
           style: TextStyle(fontSize: 14),
         ),
@@ -153,7 +167,6 @@ class SensorDataScreen extends StatelessWidget {
           divisions: 12,
           label: '${provider.motorOperationTime.toStringAsFixed(1)} hours',
           onChanged: (val) {
-            print('Slider value changed: $val');
             provider.updateMotorOperationTime(val);
           },
         ),

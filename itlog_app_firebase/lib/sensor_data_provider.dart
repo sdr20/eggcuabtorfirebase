@@ -3,17 +3,25 @@ import 'package:firebase_database/firebase_database.dart';
 
 class SensorDataProvider extends ChangeNotifier {
   final DatabaseReference _database = FirebaseDatabase.instance.ref();
+  
+  // Current values
   double _humidity = 0.0;
   double _temperature = 0.0;
   double _maxHumidity = 200.0;
-  double _maxTemperature = 41.9;
+  double _maxTemperature = 36.5;
   double _motorOperationTime = 1.0;
   bool _fanOn = false;
 
+  // Data storage for monthly data
+  Map<String, Map<int, List<double>>> _temperatureData = {};
+  Map<String, Map<int, List<double>>> _humidityData = {};
+
   SensorDataProvider() {
+    // Listen to real-time updates for humidity and temperature
     _database.child('sensor_data/humidity').onValue.listen((event) {
       if (event.snapshot.value != null) {
         _humidity = (event.snapshot.value as num).toDouble();
+        _addHumidityDataForCurrentMonth(_humidity);
         print('Humidity updated: $_humidity');
         notifyListeners();
       } else {
@@ -26,6 +34,7 @@ class SensorDataProvider extends ChangeNotifier {
     _database.child('sensor_data/temperature').onValue.listen((event) {
       if (event.snapshot.value != null) {
         _temperature = (event.snapshot.value as num).toDouble();
+        _addTemperatureDataForCurrentMonth(_temperature);
         print('Temperature updated: $_temperature');
         notifyListeners();
       } else {
@@ -35,6 +44,7 @@ class SensorDataProvider extends ChangeNotifier {
       print('Error fetching temperature data: $error');
     });
 
+    // Other Firebase listeners for settings and controls
     _database.child('settings/maxHumidity').onValue.listen((event) {
       if (event.snapshot.value != null) {
         _maxHumidity = (event.snapshot.value as num).toDouble();
@@ -84,6 +94,7 @@ class SensorDataProvider extends ChangeNotifier {
     });
   }
 
+  // Getters for the current values
   double get humidity => _humidity;
   double get temperature => _temperature;
   double get maxHumidity => _maxHumidity;
@@ -91,6 +102,7 @@ class SensorDataProvider extends ChangeNotifier {
   double get motorOperationTime => _motorOperationTime;
   bool get fanOn => _fanOn;
 
+  // Update methods for settings and controls
   void updateMaxHumidity(double value) {
     _maxHumidity = value;
     _database.child('settings/maxHumidity').set(value).then((_) {
@@ -129,5 +141,35 @@ class SensorDataProvider extends ChangeNotifier {
       print('Error setting fan status: $error');
     });
     notifyListeners();
+  }
+
+  // Add temperature data to the current month
+  void _addTemperatureDataForCurrentMonth(double temp) {
+    final String currentMonth = DateTime.now().month.toString();
+    final int currentYear = DateTime.now().year;
+
+    _temperatureData.putIfAbsent(currentMonth, () => {});
+    _temperatureData[currentMonth]!.putIfAbsent(currentYear, () => []);
+    _temperatureData[currentMonth]![currentYear]!.add(temp);
+  }
+
+  // Add humidity data to the current month
+  void _addHumidityDataForCurrentMonth(double humid) {
+    final String currentMonth = DateTime.now().month.toString();
+    final int currentYear = DateTime.now().year;
+
+    _humidityData.putIfAbsent(currentMonth, () => {});
+    _humidityData[currentMonth]!.putIfAbsent(currentYear, () => []);
+    _humidityData[currentMonth]![currentYear]!.add(humid);
+  }
+
+  // Retrieve temperature data for a specific month and year
+  List<double> getTemperatureDataForMonth(String month, int year) {
+    return _temperatureData[month]?[year] ?? [];
+  }
+
+  // Retrieve humidity data for a specific month and year
+  List<double> getHumidityDataForMonth(String month, int year) {
+    return _humidityData[month]?[year] ?? [];
   }
 }
