@@ -172,4 +172,36 @@ class SensorDataProvider extends ChangeNotifier {
   List<double> getHumidityDataForMonth(String month, int year) {
     return _humidityData[month]?[year] ?? [];
   }
+
+  // Retrieve batch temperature data for a specific year
+  Map<int, List<double>> getBatchTemperatureData(String month) {
+    return _temperatureData[month] ?? {};
+  }
+
+  // Retrieve batch humidity data for a specific year
+  Map<int, List<double>> getBatchHumidityData(String month) {
+    return _humidityData[month] ?? {};
+  }
+
+  // Color scheme based on temperature values
+  Color getTemperatureColor(double temp) {
+    if (temp > _maxTemperature) {
+      return Colors.red;
+    } else if (temp < _maxTemperature * 0.8) {
+      return Colors.blue;
+    } else {
+      return Colors.orange;
+    }
+  }
+
+  // Color scheme based on humidity values
+  Color getHumidityColor(double humid) {
+    if (humid > _maxHumidity) {
+      return Colors.red;
+    } else if (humid < _maxHumidity * 0.8) {
+      return Colors.blue;
+    } else {
+      return Colors.green;
+    }
+  }
 }

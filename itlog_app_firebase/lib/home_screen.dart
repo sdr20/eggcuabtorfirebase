@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'sensor_data_screen.dart';
-import 'camera_screen.dart';
 import 'camera_control_screen.dart';
+import 'egg_batches_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -11,18 +11,21 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
+  // Handles taps on bottom navigation bar items
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
+      print("Selected index: $index");  // Debugging output
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    // List of screens for each navigation item
     List<Widget> _widgetOptions = <Widget>[
       SensorDataScreen(),
-      CameraScreen(),
-      CameraControlScreen(), // Add this for camera controls
+      EggBatchesScreen(), // The Egg Batches Screen
+      CameraControlScreen(), // Camera Control Screen
     ];
 
     return Scaffold(
@@ -35,7 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
         centerTitle: true,
         backgroundColor: Colors.blue,
       ),
-      body: _widgetOptions.elementAt(_selectedIndex),
+      body: _widgetOptions.elementAt(_selectedIndex), // Display selected screen
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
@@ -43,17 +46,17 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Sensors',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.camera),
-            label: 'Gallery',
+            icon: Icon(Icons.egg),
+            label: 'Egg', // Renamed from Gallery to Egg
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.camera_alt),
             label: 'Camera Control',
           ),
         ],
-        currentIndex: _selectedIndex,
+        currentIndex: _selectedIndex, // The currently selected index
         selectedItemColor: Colors.blueAccent,
-        onTap: _onItemTapped,
+        onTap: _onItemTapped, // Handle taps
       ),
     );
   }
