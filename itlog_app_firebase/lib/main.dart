@@ -3,16 +3,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'sensor_data_provider.dart';
 import 'home_screen.dart';
-import 'dart:io';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Check and set the OpenGL version if the platform is Android
-  if (Platform.isAndroid) {
-    const environment = {"FORCE_GLES_VERSION": "2.0"};
-    await Process.run('setprop', environment.keys.map((k) => '$k=${environment[k]}').toList());
-  }
 
   // Initialize Firebase
   try {
