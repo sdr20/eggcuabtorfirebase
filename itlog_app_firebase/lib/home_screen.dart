@@ -31,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'IT_Log',
+          'EggCubator',
           textAlign: TextAlign.center,
           style: TextStyle(color: Colors.white),
         ),

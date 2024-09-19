@@ -1,3 +1,5 @@
+import 'dart:async'; // Import for StreamSubscription
+
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_vlc_player/flutter_vlc_player.dart';
@@ -17,43 +19,57 @@ class _CameraControlScreenState extends State<CameraControlScreen> {
   late VlcPlayerController _vlcController;
   bool _isStreaming = false;
 
+  // Declare StreamSubscription variables
+  late StreamSubscription<DatabaseEvent> _lightSubscription;
+  late StreamSubscription<DatabaseEvent> _panSubscription;
+  late StreamSubscription<DatabaseEvent> _tiltSubscription;
+
   @override
   void initState() {
     super.initState();
 
     // Initialize the VLC Player Controller with the camera stream URL
     _vlcController = VlcPlayerController.network(
-      'http://192.168.1.11:81/stream',  // Change this to your ESP32-CAM stream URL
+      'http://192.168.254.111:81/stream',  // Change this to your ESP32-CAM stream URL
       hwAcc: HwAcc.full,
       autoPlay: false,
     );
 
     // Listen to Firebase database for updates to light, pan, and tilt controls
-    databaseReference.child('light').onValue.listen((event) {
-      final lightState = event.snapshot.value as bool? ?? false;
-      setState(() {
-        _isLightOn = lightState;
-      });
+    _lightSubscription = databaseReference.child('light').onValue.listen((event) {
+      if (mounted) {
+        final lightState = event.snapshot.value as bool? ?? false;
+        setState(() {
+          _isLightOn = lightState;
+        });
+      }
     });
 
-    databaseReference.child('servos/pan').onValue.listen((event) {
-      final panValue = event.snapshot.value as int? ?? 90;
-      setState(() {
-        _panValue = panValue.toDouble();
-      });
+    _panSubscription = databaseReference.child('servos/pan').onValue.listen((event) {
+      if (mounted) {
+        final panValue = event.snapshot.value as int? ?? 90;
+        setState(() {
+          _panValue = panValue.toDouble();
+        });
+      }
     });
 
-    databaseReference.child('servos/tilt').onValue.listen((event) {
-      final tiltValue = event.snapshot.value as int? ?? 90;
-      setState(() {
-        _tiltValue = tiltValue.toDouble();
-      });
+    _tiltSubscription = databaseReference.child('servos/tilt').onValue.listen((event) {
+      if (mounted) {
+        final tiltValue = event.snapshot.value as int? ?? 90;
+        setState(() {
+          _tiltValue = tiltValue.toDouble();
+        });
+      }
     });
   }
 
   @override
   void dispose() {
     _vlcController.dispose();
+    _lightSubscription.cancel();
+    _panSubscription.cancel();
+    _tiltSubscription.cancel();
     super.dispose();
   }
 

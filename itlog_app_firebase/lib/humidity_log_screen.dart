@@ -284,23 +284,20 @@ class _HumidityLogScreenState extends State<HumidityLogScreen> {
   }
 
   Widget _buildLiveHumidityDisplay() {
-    return Container(
-      height: 40,
-      decoration: BoxDecoration(
-        color: Colors.blueAccent.withOpacity(0.2), // Light blue background
-        borderRadius: BorderRadius.circular(10), // Rounded corners
-      ),
-      margin: const EdgeInsets.all(8.0), // Margin around the container
-      padding: const EdgeInsets.symmetric(horizontal: 16.0), // Padding inside the container
-      child: Center(
-        child: Text(
-          'Live Humidity: ${sensorData.humidity.toStringAsFixed(1)}%',
-          style: TextStyle(
-            color: Colors.blueAccent, // Text color
-            fontWeight: FontWeight.bold, // Bold font
-            fontSize: 18, // Larger font size
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Current Humidity: ',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-        ),
+          Text(
+            '${sensorData.humidity.toStringAsFixed(1)}%',
+            style: TextStyle(fontSize: 18, color: Colors.blueAccent),
+          ),
+        ],
       ),
     );
   }
@@ -308,21 +305,26 @@ class _HumidityLogScreenState extends State<HumidityLogScreen> {
   Widget _buildIntervalDropdown() {
     return Padding(
       padding: const EdgeInsets.all(8.0),
-      child: DropdownButton<String>(
-        value: selectedInterval,
-        onChanged: (String? newValue) {
-          setState(() {
-            selectedInterval = newValue!;
-            _updateFilteredData(); // Update chart data based on the new interval
-          });
-        },
-        items: <String>['Per Minute', 'Per Day', 'Per Week', 'Per Month']
-            .map<DropdownMenuItem<String>>((String value) {
-          return DropdownMenuItem<String>(
-            value: value,
-            child: Text(value),
-          );
-        }).toList(),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('Interval: ', style: TextStyle(fontSize: 16)),
+          DropdownButton<String>(
+            value: selectedInterval,
+            items: ['Per Minute', 'Per Day', 'Per Week', 'Per Month']
+                .map((interval) => DropdownMenuItem<String>(
+                      value: interval,
+                      child: Text(interval),
+                    ))
+                .toList(),
+            onChanged: (value) {
+              setState(() {
+                selectedInterval = value!;
+                _updateFilteredData();
+              });
+            },
+          ),
+        ],
       ),
     );
   }
@@ -330,22 +332,26 @@ class _HumidityLogScreenState extends State<HumidityLogScreen> {
   Widget _buildDayDropdown() {
     return Padding(
       padding: const EdgeInsets.all(8.0),
-      child: DropdownButton<int>(
-        value: selectedDay,
-        onChanged: (int? newValue) {
-          setState(() {
-            selectedDay = newValue!;
-            _initializeNewDayData(DateTime.now()); // Initialize new day data
-            _updateFilteredData(); // Update chart data based on the new day
-          });
-        },
-        items: List.generate(31, (index) => index + 1)
-            .map<DropdownMenuItem<int>>((int value) {
-          return DropdownMenuItem<int>(
-            value: value,
-            child: Text('Day $value'),
-          );
-        }).toList(),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('Select Day: ', style: TextStyle(fontSize: 16)),
+          DropdownButton<int>(
+            value: selectedDay,
+            items: List.generate(31, (index) => index + 1)
+                .map((day) => DropdownMenuItem<int>(
+                      value: day,
+                      child: Text('$day'),
+                    ))
+                .toList(),
+            onChanged: (value) {
+              setState(() {
+                selectedDay = value!;
+                _updateFilteredData();
+              });
+            },
+          ),
+        ],
       ),
     );
   }

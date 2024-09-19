@@ -202,6 +202,38 @@ class SensorDataProvider extends ChangeNotifier {
     return _humidityData[month]?[year] ?? [];
   }
 
+  // Retrieve historical temperature data for a specific batch
+  Future<List<double>> getBatchTemperatureData(String batchId) async {
+    try {
+      final snapshot = await _database.child('batch_data/$batchId/temperature').get();
+      if (snapshot.exists && snapshot.value is Map<dynamic, dynamic>) {
+        final dataMap = snapshot.value as Map<dynamic, dynamic>;
+        return dataMap.values.map((value) => (value as num).toDouble()).toList();
+      } else {
+        return [];
+      }
+    } catch (error) {
+      print('Error retrieving temperature data: $error');
+      return [];
+    }
+  }
+
+  // Retrieve historical humidity data for a specific batch
+  Future<List<double>> getBatchHumidityData(String batchId) async {
+    try {
+      final snapshot = await _database.child('batch_data/$batchId/humidity').get();
+      if (snapshot.exists && snapshot.value is Map<dynamic, dynamic>) {
+        final dataMap = snapshot.value as Map<dynamic, dynamic>;
+        return dataMap.values.map((value) => (value as num).toDouble()).toList();
+      } else {
+        return [];
+      }
+    } catch (error) {
+      print('Error retrieving humidity data: $error');
+      return [];
+    }
+  }
+
   // Retrieve latest temperature for a specific batch
   Future<double> getLatestBatchTemperature(String batchId) async {
     try {

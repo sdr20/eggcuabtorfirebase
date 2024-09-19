@@ -141,8 +141,8 @@ class _TemperatureLogScreenState extends State<TemperatureLogScreen> {
   }
 
   String _getIntervalKey() {
-    DateTime now = DateTime.now(); // Get real-time month and year
-    return "${now.month}-${now.year}-$selectedInterval-$selectedDay";
+    // Use selectedDate instead of real-time DateTime.now() for historical data lookup
+    return "${selectedDate.month}-${selectedDate.year}-$selectedInterval-$selectedDay";
   }
 
   String _getIntervalKeyForDay(DateTime date) {
@@ -180,13 +180,6 @@ class _TemperatureLogScreenState extends State<TemperatureLogScreen> {
     }
   }
 
-  double _getMaxYForInterval() {
-    double maxTemperature = temperatureSpots.isNotEmpty
-        ? temperatureSpots.map((e) => e.y).reduce((a, b) => a > b ? a : b)
-        : 50;
-    return maxTemperature + 5; // Adding buffer
-  }
-
   @override
   Widget build(BuildContext context) {
     sensorData = Provider.of<SensorDataProvider>(context);
@@ -197,6 +190,9 @@ class _TemperatureLogScreenState extends State<TemperatureLogScreen> {
         children: [
           // Dropdown for interval selection
           _buildIntervalDropdown(),
+          _buildLiveTemperatureDisplay(),
+          // Date Picker for historical data selection
+          _buildDatePicker(),
           
           // Day dropdown for 'Per Minute' selection
           if (selectedInterval == 'Per Minute') _buildDayDropdown(), 
@@ -271,51 +267,15 @@ class _TemperatureLogScreenState extends State<TemperatureLogScreen> {
                                 show: true,
                                 border: Border.all(
                                   color: const Color.fromRGBO(0, 0, 0, 0.1),
-                                  width: 1,
                                 ),
                               ),
-                              minX: 0,
                               maxX: _getMaxXForInterval(),
-                              minY: 0,
-                              maxY: _getMaxYForInterval(),
+                              minY: 25,   // Start Y-axis at 25°C
+                              maxY: 50,   // Set max Y-axis at 50°C
                             ),
                           ),
                         ),
                 ),
-              ),
-            ),
-          ),
-          
-          // Live temperature display at the bottom with green highlight
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Container(
-              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.green[100],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.green, width: 2),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Live Temperature:',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green[800],
-                    ),
-                  ),
-                  Text(
-                    '${sensorData.temperature.toStringAsFixed(1)}°C',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green[900],
-                    ),
-                  ),
-                ],
               ),
             ),
           ),
@@ -324,15 +284,38 @@ class _TemperatureLogScreenState extends State<TemperatureLogScreen> {
     );
   }
 
+  Widget _buildLiveTemperatureDisplay() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Current Temperature: ',
+            style: TextStyle(fontSize: 18),
+          ),
+          Text(
+            '${sensorData.temperature}°C',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildIntervalDropdown() {
     return Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.all(16.0),
       child: DropdownButton<String>(
         value: selectedInterval,
         onChanged: (String? newValue) {
           setState(() {
             selectedInterval = newValue!;
+            // Reset to current day when interval changes
+            selectedDay = DateTime.now().day;
+            selectedDate = DateTime.now();
             _updateFilteredData();
+            _saveDataLocally();
           });
         },
         items: <String>['Per Minute', 'Per Day', 'Per Week', 'Per Month']
@@ -346,24 +329,49 @@ class _TemperatureLogScreenState extends State<TemperatureLogScreen> {
     );
   }
 
+  Widget _buildDatePicker() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: ElevatedButton(
+        onPressed: () async {
+          DateTime? pickedDate = await showDatePicker(
+            context: context,
+            initialDate: selectedDate,
+            firstDate: DateTime(2000),
+            lastDate: DateTime.now(),
+          );
+          if (pickedDate != null && pickedDate != selectedDate) {
+            setState(() {
+              selectedDate = pickedDate;
+              _updateFilteredData();
+              _saveDataLocally();
+            });
+          }
+        },
+        child: Text('Select Date: ${selectedDate.toLocal()}'.split(' ')[0]),
+      ),
+    );
+  }
+
   Widget _buildDayDropdown() {
     return Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.all(16.0),
       child: DropdownButton<int>(
         value: selectedDay,
         onChanged: (int? newValue) {
           setState(() {
             selectedDay = newValue!;
             _updateFilteredData();
+            _saveDataLocally();
           });
         },
-        items: List.generate(31, (index) => index + 1)
-            .map<DropdownMenuItem<int>>((int value) {
-          return DropdownMenuItem<int>(
-            value: value,
-            child: Text('Day $value'),
-          );
-        }).toList(),
+        items: List.generate(
+          31,
+          (index) => DropdownMenuItem<int>(
+            value: index + 1,
+            child: Text('${index + 1}'),
+          ),
+        ),
       ),
     );
   }

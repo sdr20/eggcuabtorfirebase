@@ -109,22 +109,58 @@ class _EggBatchesScreenState extends State<EggBatchesScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Egg Batches'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.add),
-            onPressed: _showAddBatchDialog,
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      //title: Text('Egg Batches'),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: GestureDetector(
+            onTap: _showAddBatchDialog,
+            child: Container(
+              padding: EdgeInsets.all(8.0), // Padding inside the button
+              decoration: BoxDecoration(
+                color: Colors.white, // Background color of the button
+                borderRadius: BorderRadius.circular(8.0), // Rounded corners
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.5),
+                    spreadRadius: 2,
+                    blurRadius: 5,
+                    offset: Offset(0, 3), // Shadow position
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.add,
+                color: Colors.blue, // Color of the add icon
+              ),
+            ),
           ),
-        ],
-      ),
-      body: ListView.builder(
-        itemCount: _batches.length,
-        itemBuilder: (context, index) {
-          final batch = _batches[index];
-          return ListTile(
+        ),
+      ],
+    ),
+    body: ListView.builder(
+      itemCount: _batches.length,
+      itemBuilder: (context, index) {
+        final batch = _batches[index];
+        return Container(
+          margin: EdgeInsets.all(10.0), // Adds spacing around each batch container
+          padding: EdgeInsets.all(15.0), // Adds padding inside the container
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10.0),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.5),
+                spreadRadius: 2,
+                blurRadius: 5,
+                offset: Offset(0, 3), // changes position of the shadow
+              ),
+            ],
+          ),
+          child: ListTile(
             title: Text(batch.name),
             subtitle: Text('Amount: ${batch.amount}'),
             onTap: () {
@@ -138,9 +174,11 @@ class _EggBatchesScreenState extends State<EggBatchesScreen> {
               icon: Icon(Icons.delete),
               onPressed: () => _deleteBatch(batch.id),
             ),
-          );
-        },
-      ),
-    );
-  }
+          ),
+        );
+      },
+    ),
+  );
+}
+
 }
