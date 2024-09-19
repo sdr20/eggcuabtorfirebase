@@ -15,7 +15,6 @@ class _HumidityLogScreenState extends State<HumidityLogScreen> {
   String selectedInterval = 'Per Day'; // Default interval
   DateTime selectedDate = DateTime.now(); // Real-time date
   late DateTime previousDate; // Tracks the previous date for day change detection
-  int selectedDay = DateTime.now().day; // Default to current day for "Per Minute"
   late Timer _timer;
   Map<String, Map<int, double>> humidityData = {}; // Storing data for all intervals
   List<FlSpot> humiditySpots = [];
@@ -26,7 +25,7 @@ class _HumidityLogScreenState extends State<HumidityLogScreen> {
   void initState() {
     super.initState();
     sensorData = Provider.of<SensorDataProvider>(context, listen: false);
-    _loadDataLocally();
+    _loadDataLocally(); // Load historical data
 
     // Set the initial previous date to the current date
     previousDate = DateTime.now();
@@ -37,16 +36,14 @@ class _HumidityLogScreenState extends State<HumidityLogScreen> {
 
       // Detect if the day has changed
       if (now.day != previousDate.day) {
-        // Update selectedDay and selectedDate for the new day
         setState(() {
-          selectedDay = now.day;
           selectedDate = now;
           previousDate = now; // Update previous date to current day
         });
 
         // Initialize new day data
         _initializeNewDayData(now);
-        
+
         // Clear previous data to avoid mixing with new day's data
         humiditySpots.clear();
       }
@@ -54,7 +51,7 @@ class _HumidityLogScreenState extends State<HumidityLogScreen> {
       setState(() {
         _updateHumidityData();
         _updateFilteredData();
-        _saveDataLocally();
+        _saveDataLocally(); // Save historical data
       });
     });
   }
@@ -142,7 +139,7 @@ class _HumidityLogScreenState extends State<HumidityLogScreen> {
 
   String _getIntervalKey() {
     DateTime now = DateTime.now(); // Get real-time month and year
-    return "${now.month}-${now.year}-$selectedInterval-$selectedDay";
+    return "${now.month}-${now.year}-$selectedInterval-${selectedDate.day}";
   }
 
   String _getIntervalKeyForDay(DateTime date) {
@@ -181,10 +178,25 @@ class _HumidityLogScreenState extends State<HumidityLogScreen> {
   }
 
   double _getMaxYForInterval() {
-    double maxHumidity = humiditySpots.isNotEmpty
-        ? humiditySpots.map((e) => e.y).reduce((a, b) => a > b ? a : b)
-        : 100;
-    return maxHumidity + 10; // Adding buffer to accommodate any higher value
+    // Set max Y value to 100
+    return 100;
+  }
+
+  Future<void> _selectDate() async {
+    DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+
+    if (pickedDate != null && pickedDate != selectedDate) {
+      setState(() {
+        selectedDate = pickedDate;
+        _updateFilteredData();
+        _saveDataLocally();
+      });
+    }
   }
 
   @override
@@ -197,7 +209,7 @@ class _HumidityLogScreenState extends State<HumidityLogScreen> {
         children: [
           _buildLiveHumidityDisplay(), // Live Humidity Display
           _buildIntervalDropdown(),
-          if (selectedInterval == 'Per Minute') _buildDayDropdown(), // Show day dropdown only for 'Per Minute'
+          if (selectedInterval == 'Per Minute') _buildDatePickerButton(), // Show date picker button only for 'Per Minute'
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -270,8 +282,8 @@ class _HumidityLogScreenState extends State<HumidityLogScreen> {
                             ),
                             minX: 0,
                             maxX: _getMaxXForInterval(),
-                            minY: 0,
-                            maxY: _getMaxYForInterval(),
+                            minY: 30, // Set min Y value to 30
+                            maxY: _getMaxYForInterval(), // Set max Y value to 100
                           ),
                         ),
                       ),
@@ -321,6 +333,10 @@ class _HumidityLogScreenState extends State<HumidityLogScreen> {
               setState(() {
                 selectedInterval = value!;
                 _updateFilteredData();
+                // Reset to current day when interval changes
+                selectedDate = DateTime.now();
+                _updateFilteredData();
+                _saveDataLocally();
               });
             },
           ),
@@ -329,27 +345,19 @@ class _HumidityLogScreenState extends State<HumidityLogScreen> {
     );
   }
 
-  Widget _buildDayDropdown() {
+  Widget _buildDatePickerButton() {
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('Select Day: ', style: TextStyle(fontSize: 16)),
-          DropdownButton<int>(
-            value: selectedDay,
-            items: List.generate(31, (index) => index + 1)
-                .map((day) => DropdownMenuItem<int>(
-                      value: day,
-                      child: Text('$day'),
-                    ))
-                .toList(),
-            onChanged: (value) {
-              setState(() {
-                selectedDay = value!;
-                _updateFilteredData();
-              });
-            },
+          Text('Select Date: ', style: TextStyle(fontSize: 16)),
+          ElevatedButton(
+            onPressed: _selectDate,
+            child: Text(
+              '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
+              style: TextStyle(fontSize: 16),
+            ),
           ),
         ],
       ),
