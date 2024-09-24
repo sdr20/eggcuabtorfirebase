@@ -52,9 +52,9 @@ class _EggBatchesScreenState extends State<EggBatchesScreen> {
     );
     _batchesRef.child(batchId).set(newBatch.toMap());
 
+    // Update sensor data after adding batch
     final sensorData = Provider.of<SensorDataProvider>(context, listen: false);
-    sensorData.addBatchTemperatureData(batchId, newBatch.creationDate.millisecondsSinceEpoch.toDouble());
-    sensorData.addBatchHumidityData(batchId, newBatch.creationDate.millisecondsSinceEpoch.toDouble());
+    sensorData.startRecordingForBatch(batchId); // Start recording for the new batch
   }
 
   void _deleteBatch(String batchId) {
@@ -90,11 +90,15 @@ class _EggBatchesScreenState extends State<EggBatchesScreen> {
                 final String name = _nameController.text;
                 final int amount = int.tryParse(_amountController.text) ?? 0;
 
-                if (name.isNotEmpty) {
+                if (name.isNotEmpty && amount > 0) {
                   _addBatch(name, amount);
+                  Navigator.of(context).pop();
+                } else {
+                  // Add validation message
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Please provide valid batch details.')),
+                  );
                 }
-
-                Navigator.of(context).pop();
               },
               child: Text('Add'),
             ),
@@ -109,76 +113,75 @@ class _EggBatchesScreenState extends State<EggBatchesScreen> {
   }
 
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      //title: Text('Egg Batches'),
-      actions: [
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: GestureDetector(
-            onTap: _showAddBatchDialog,
-            child: Container(
-              padding: EdgeInsets.all(8.0), // Padding inside the button
-              decoration: BoxDecoration(
-                color: Colors.white, // Background color of the button
-                borderRadius: BorderRadius.circular(8.0), // Rounded corners
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.5),
-                    spreadRadius: 2,
-                    blurRadius: 5,
-                    offset: Offset(0, 3), // Shadow position
-                  ),
-                ],
-              ),
-              child: Icon(
-                Icons.add,
-                color: Colors.blue, // Color of the add icon
-              ),
-            ),
-          ),
-        ),
-      ],
-    ),
-    body: ListView.builder(
-      itemCount: _batches.length,
-      itemBuilder: (context, index) {
-        final batch = _batches[index];
-        return Container(
-          margin: EdgeInsets.all(10.0), // Adds spacing around each batch container
-          padding: EdgeInsets.all(15.0), // Adds padding inside the container
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10.0),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.5),
-                spreadRadius: 2,
-                blurRadius: 5,
-                offset: Offset(0, 3), // changes position of the shadow
-              ),
-            ],
-          ),
-          child: ListTile(
-            title: Text(batch.name),
-            subtitle: Text('Amount: ${batch.amount}'),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => BatchAnalyticsScreen(batch: batch),
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        // title: Text('Egg Batches'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: GestureDetector(
+              onTap: _showAddBatchDialog,
+              child: Container(
+                padding: EdgeInsets.all(8.0), // Padding inside the button
+                decoration: BoxDecoration(
+                  color: Colors.white, // Background color of the button
+                  borderRadius: BorderRadius.circular(8.0), // Rounded corners
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.5),
+                      spreadRadius: 2,
+                      blurRadius: 5,
+                      offset: Offset(0, 3), // Shadow position
+                    ),
+                  ],
                 ),
-              );
-            },
-            trailing: IconButton(
-              icon: Icon(Icons.delete),
-              onPressed: () => _deleteBatch(batch.id),
+                child: Icon(
+                  Icons.add,
+                  color: Colors.blue, // Color of the add icon
+                ),
+              ),
             ),
           ),
-        );
-      },
-    ),
-  );
-}
-
+        ],
+      ),
+      body: ListView.builder(
+        itemCount: _batches.length,
+        itemBuilder: (context, index) {
+          final batch = _batches[index];
+          return Container(
+            margin: EdgeInsets.all(10.0), // Adds spacing around each batch container
+            padding: EdgeInsets.all(15.0), // Adds padding inside the container
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10.0),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.5),
+                  spreadRadius: 2,
+                  blurRadius: 5,
+                  offset: Offset(0, 3), // Changes position of the shadow
+                ),
+              ],
+            ),
+            child: ListTile(
+              title: Text(batch.name),
+              subtitle: Text('Amount: ${batch.amount}'),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => BatchAnalyticsScreen(batch: batch),
+                  ),
+                );
+              },
+              trailing: IconButton(
+                icon: Icon(Icons.delete),
+                onPressed: () => _deleteBatch(batch.id),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 }

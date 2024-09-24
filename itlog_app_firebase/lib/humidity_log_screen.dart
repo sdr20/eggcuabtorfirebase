@@ -81,15 +81,17 @@ class _HumidityLogScreenState extends State<HumidityLogScreen> {
     String intervalKey = _getIntervalKey();
     Map<int, double>? dataForInterval = humidityData[intervalKey];
 
-    if (dataForInterval != null) {
+    if (dataForInterval != null && dataForInterval.isNotEmpty) {
+      // Create a sorted list of FlSpot from the data
       humiditySpots = dataForInterval.entries
           .map((entry) => FlSpot(entry.key.toDouble(), entry.value))
           .toList();
+
+      // Sort the spots by x value
+      humiditySpots.sort((a, b) => a.x.compareTo(b.x));
     } else {
       humiditySpots = [];
     }
-
-    humiditySpots.sort((a, b) => a.x.compareTo(b.x));
   }
 
   void _saveDataLocally() async {
@@ -139,12 +141,12 @@ class _HumidityLogScreenState extends State<HumidityLogScreen> {
 
   String _getIntervalKey() {
     DateTime now = DateTime.now(); // Get real-time month and year
-    return "${now.month}-${now.year}-$selectedInterval-${selectedDate.day}";
+    return "${now.month}-${now.year}-$selectedInterval";
   }
 
   String _getIntervalKeyForDay(DateTime date) {
     // Generate a key for a specific day
-    return "${date.month}-${date.year}-$selectedInterval-${date.day}";
+    return "${date.month}-${date.year}-$selectedInterval";
   }
 
   int _getDataKey(DateTime now) {
@@ -206,10 +208,11 @@ class _HumidityLogScreenState extends State<HumidityLogScreen> {
     return Scaffold(
       appBar: AppBar(title: Text('Humidity Log')),
       body: Column(
+        mainAxisAlignment: MainAxisAlignment.center, // Center the column
         children: [
           _buildLiveHumidityDisplay(), // Live Humidity Display
           _buildIntervalDropdown(),
-          if (selectedInterval == 'Per Minute') _buildDatePickerButton(), // Show date picker button only for 'Per Minute'
+          if (selectedInterval == 'Per Minute') _buildDatePicker(), // Show date picker only for "Per Minute"
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -253,35 +256,61 @@ class _HumidityLogScreenState extends State<HumidityLogScreen> {
                                   showTitles: true,
                                   reservedSize: 60,
                                   getTitlesWidget: (value, meta) {
-                                    return SideTitleWidget(
-                                      axisSide: meta.axisSide,
-                                      child: Text('${value.toInt()}'),
-                                    );
+                                    if (selectedInterval == 'Per Minute') {
+                                      // Format the x value to HH:MM
+                                      final hour = (value ~/ 60).toInt();
+                                      final minute = (value % 60).toInt();
+                                      return SideTitleWidget(
+                                        axisSide: meta.axisSide,
+                                        space: 4.0,
+                                        child: Text(
+                                          '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}',
+                                          style: TextStyle(fontSize: 12),
+                                        ),
+                                      );
+                                    } else {
+                                      // Display x value as-is for other intervals
+                                      return SideTitleWidget(
+                                        axisSide: meta.axisSide,
+                                        space: 4.0,
+                                        child: Text(
+                                          value.toInt().toString(),
+                                          style: TextStyle(fontSize: 12),
+                                        ),
+                                      );
+                                    }
                                   },
                                 ),
                               ),
                               leftTitles: AxisTitles(
                                 sideTitles: SideTitles(
                                   showTitles: true,
-                                  reservedSize: 50,
+                                  reservedSize: 40,
                                   getTitlesWidget: (value, meta) {
                                     return SideTitleWidget(
                                       axisSide: meta.axisSide,
-                                      child: Text('${value.toInt()}%'),
+                                      space: 4.0,
+                                      child: Text(
+                                        value.toInt().toString(),
+                                        style: TextStyle(fontSize: 12),
+                                      ),
                                     );
                                   },
                                 ),
                               ),
+                              rightTitles: AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              topTitles: AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
                             ),
                             borderData: FlBorderData(
                               show: true,
-                              border: Border.all(
-                                color: const Color.fromRGBO(0, 0, 0, 0.1),
-                                width: 1,
-                              ),
+                              border: Border.all(color: const Color.fromRGBO(192, 108, 132, 1), width: 1),
                             ),
-                            minX: 0,
-                            maxX: _getMaxXForInterval(),
+                            minX: humiditySpots.isNotEmpty ? humiditySpots.first.x : 0, // Start from the first data point
+                            maxX: _getMaxXForInterval(), // Keep this as per your original method
                             minY: 30, // Set min Y value to 30
                             maxY: _getMaxYForInterval(), // Set max Y value to 100
                           ),
@@ -296,18 +325,18 @@ class _HumidityLogScreenState extends State<HumidityLogScreen> {
   }
 
   Widget _buildLiveHumidityDisplay() {
-    return Padding(
+    return Container(
       padding: const EdgeInsets.all(16.0),
-      child: Row(
+      child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Current Humidity: ',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            'Current Humidity:',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold), // Smaller font size
           ),
           Text(
-            '${sensorData.humidity.toStringAsFixed(1)}%',
-            style: TextStyle(fontSize: 18, color: Colors.blueAccent),
+            '${sensorData.humidity} %',
+            style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold), // Smaller font size
           ),
         ],
       ),
@@ -315,52 +344,35 @@ class _HumidityLogScreenState extends State<HumidityLogScreen> {
   }
 
   Widget _buildIntervalDropdown() {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text('Interval: ', style: TextStyle(fontSize: 16)),
-          DropdownButton<String>(
-            value: selectedInterval,
-            items: ['Per Minute', 'Per Day', 'Per Week', 'Per Month']
-                .map((interval) => DropdownMenuItem<String>(
-                      value: interval,
-                      child: Text(interval),
-                    ))
-                .toList(),
-            onChanged: (value) {
-              setState(() {
-                selectedInterval = value!;
-                _updateFilteredData();
-                // Reset to current day when interval changes
-                selectedDate = DateTime.now();
-                _updateFilteredData();
-                _saveDataLocally();
-              });
-            },
-          ),
-        ],
-      ),
+    return DropdownButton<String>(
+      value: selectedInterval,
+      items: <String>['Per Minute', 'Per Day', 'Per Week', 'Per Month']
+          .map<DropdownMenuItem<String>>((String value) {
+        return DropdownMenuItem<String>(
+          value: value,
+          child: Text(value),
+        );
+      }).toList(),
+      onChanged: (String? newValue) {
+        setState(() {
+          selectedInterval = newValue!;
+          _updateFilteredData();
+        });
+      },
     );
   }
 
-  Widget _buildDatePickerButton() {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text('Select Date: ', style: TextStyle(fontSize: 16)),
-          ElevatedButton(
-            onPressed: _selectDate,
-            child: Text(
-              '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
-              style: TextStyle(fontSize: 16),
-            ),
-          ),
-        ],
-      ),
+  Widget _buildDatePicker() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text("Select Date:"),
+        SizedBox(width: 10),
+        ElevatedButton(
+          onPressed: _selectDate,
+          child: Text("${selectedDate.toLocal()}".split(' ')[0]),
+        ),
+      ],
     );
   }
 }

@@ -15,7 +15,6 @@ class _TemperatureLogScreenState extends State<TemperatureLogScreen> {
   String selectedInterval = 'Per Day'; // Default interval
   DateTime selectedDate = DateTime.now(); // Real-time date
   late DateTime previousDate; // Tracks the previous date for day change detection
-  int selectedDay = DateTime.now().day; // Default to current day for "Per Minute"
   late Timer _timer;
   Map<String, Map<int, double>> temperatureData = {}; // Storing data for all intervals
   List<FlSpot> temperatureSpots = [];
@@ -31,15 +30,14 @@ class _TemperatureLogScreenState extends State<TemperatureLogScreen> {
     // Set the initial previous date to the current date
     previousDate = DateTime.now();
 
-    // Periodic updates based on real-time clock
+    // Periodic updates based on real-time clock every 1 minute
     _timer = Timer.periodic(Duration(minutes: 1), (timer) {
       DateTime now = DateTime.now();
 
       // Detect if the day has changed
       if (now.day != previousDate.day) {
-        // Update selectedDay and selectedDate for the new day
+        // Update selectedDate for the new day
         setState(() {
-          selectedDay = now.day;
           selectedDate = now;
           previousDate = now; // Update previous date to current day
         });
@@ -51,11 +49,14 @@ class _TemperatureLogScreenState extends State<TemperatureLogScreen> {
         temperatureSpots.clear();
       }
 
-      setState(() {
-        _updateTemperatureData();
-        _updateFilteredData();
-        _saveDataLocally();
-      });
+      // Only update data every 5 minutes
+      if (now.minute % 5 == 0 && now.second == 0) {
+        setState(() {
+          _updateTemperatureData();
+          _updateFilteredData();
+          _saveDataLocally();
+        });
+      }
     });
   }
 
@@ -106,11 +107,17 @@ class _TemperatureLogScreenState extends State<TemperatureLogScreen> {
 
     String jsonString = jsonEncode(serializedData);
     await prefs.setString('temperatureData', jsonString);
+    await prefs.setString('previousDate', previousDate.toIso8601String());
   }
 
   void _loadDataLocally() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? jsonString = prefs.getString('temperatureData');
+    String? prevDateStr = prefs.getString('previousDate');
+    
+    if (prevDateStr != null) {
+      previousDate = DateTime.parse(prevDateStr);
+    }
 
     if (jsonString != null) {
       Map<String, dynamic> jsonMap = jsonDecode(jsonString);
@@ -141,12 +148,10 @@ class _TemperatureLogScreenState extends State<TemperatureLogScreen> {
   }
 
   String _getIntervalKey() {
-    // Use selectedDate instead of real-time DateTime.now() for historical data lookup
-    return "${selectedDate.month}-${selectedDate.year}-$selectedInterval-$selectedDay";
+    return "${selectedDate.month}-${selectedDate.year}-$selectedInterval";
   }
 
   String _getIntervalKeyForDay(DateTime date) {
-    // Generate a key for a specific day
     return "${date.month}-${date.year}-$selectedInterval-${date.day}";
   }
 
@@ -191,12 +196,12 @@ class _TemperatureLogScreenState extends State<TemperatureLogScreen> {
           // Dropdown for interval selection
           _buildIntervalDropdown(),
           _buildLiveTemperatureDisplay(),
-          // Date Picker for historical data selection
-          _buildDatePicker(),
           
-          // Day dropdown for 'Per Minute' selection
-          if (selectedInterval == 'Per Minute') _buildDayDropdown(), 
-          
+          // Conditionally show DatePicker for 'Per Minute' interval
+          if (selectedInterval == 'Per Minute') ...[
+            _buildDatePicker(),  // Show date picker only for 'Per Minute'
+          ],
+
           // Expanded section for the chart
           Expanded(
             child: Padding(
@@ -245,7 +250,12 @@ class _TemperatureLogScreenState extends State<TemperatureLogScreen> {
                                     getTitlesWidget: (value, meta) {
                                       return SideTitleWidget(
                                         axisSide: meta.axisSide,
-                                        child: Text('${value.toInt()}'),
+                                        child: Text(
+                                          selectedInterval == 'Per Minute'
+                                              ? '${(value.toInt() ~/ 60).toString()}:${(value.toInt() % 60).toString().padLeft(2, '0')}' // Time format
+                                              : value.toInt().toString(),
+                                          style: TextStyle(fontSize: 12),
+                                        ),
                                       );
                                     },
                                   ),
@@ -257,10 +267,19 @@ class _TemperatureLogScreenState extends State<TemperatureLogScreen> {
                                     getTitlesWidget: (value, meta) {
                                       return SideTitleWidget(
                                         axisSide: meta.axisSide,
-                                        child: Text('${value.toInt()}°C'),
+                                        child: Text(
+                                          '${value.toInt()}°C',
+                                          style: TextStyle(fontSize: 12),
+                                        ),
                                       );
                                     },
                                   ),
+                                ),
+                                rightTitles: AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false),
+                                ),
+                                topTitles: AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false),
                                 ),
                               ),
                               borderData: FlBorderData(
@@ -270,7 +289,7 @@ class _TemperatureLogScreenState extends State<TemperatureLogScreen> {
                                 ),
                               ),
                               maxX: _getMaxXForInterval(),
-                              minY: 25,   // Start Y-axis at 25°C
+                              minY: 20,   // Start Y-axis at 20°C
                               maxY: 50,   // Set max Y-axis at 50°C
                             ),
                           ),
@@ -284,94 +303,60 @@ class _TemperatureLogScreenState extends State<TemperatureLogScreen> {
     );
   }
 
-  Widget _buildLiveTemperatureDisplay() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            'Current Temperature: ',
-            style: TextStyle(fontSize: 18),
-          ),
-          Text(
-            '${sensorData.temperature}°C',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
+  Widget _buildIntervalDropdown() {
+    return DropdownButton<String>(
+      value: selectedInterval,
+      onChanged: (String? newValue) {
+        setState(() {
+          selectedInterval = newValue!;
+          _updateFilteredData();
+        });
+      },
+      items: <String>['Per Minute', 'Per Day', 'Per Week', 'Per Month']
+          .map<DropdownMenuItem<String>>((String value) {
+        return DropdownMenuItem<String>(
+          value: value,
+          child: Text(value),
+        );
+      }).toList(),
     );
   }
 
-  Widget _buildIntervalDropdown() {
+  Widget _buildLiveTemperatureDisplay() {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: DropdownButton<String>(
-        value: selectedInterval,
-        onChanged: (String? newValue) {
-          setState(() {
-            selectedInterval = newValue!;
-            // Reset to current day when interval changes
-            selectedDay = DateTime.now().day;
-            selectedDate = DateTime.now();
-            _updateFilteredData();
-            _saveDataLocally();
-          });
-        },
-        items: <String>['Per Minute', 'Per Day', 'Per Week', 'Per Month']
-            .map<DropdownMenuItem<String>>((String value) {
-          return DropdownMenuItem<String>(
-            value: value,
-            child: Text(value),
-          );
-        }).toList(),
+      padding: const EdgeInsets.all(8.0),
+      child: Text(
+        'Current Temperature: ${sensorData.temperature.toStringAsFixed(1)}°C',
+        style: TextStyle(fontSize: 24),
       ),
     );
   }
 
   Widget _buildDatePicker() {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: ElevatedButton(
-        onPressed: () async {
-          DateTime? pickedDate = await showDatePicker(
-            context: context,
-            initialDate: selectedDate,
-            firstDate: DateTime(2000),
-            lastDate: DateTime.now(),
-          );
-          if (pickedDate != null && pickedDate != selectedDate) {
-            setState(() {
-              selectedDate = pickedDate;
-              _updateFilteredData();
-              _saveDataLocally();
-            });
-          }
-        },
-        child: Text('Select Date: ${selectedDate.toLocal()}'.split(' ')[0]),
-      ),
-    );
-  }
-
-  Widget _buildDayDropdown() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: DropdownButton<int>(
-        value: selectedDay,
-        onChanged: (int? newValue) {
-          setState(() {
-            selectedDay = newValue!;
-            _updateFilteredData();
-            _saveDataLocally();
-          });
-        },
-        items: List.generate(
-          31,
-          (index) => DropdownMenuItem<int>(
-            value: index + 1,
-            child: Text('${index + 1}'),
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('Select Date: '),
+          ElevatedButton(
+            onPressed: () async {
+              DateTime? picked = await showDatePicker(
+                context: context,
+                initialDate: selectedDate,
+                firstDate: DateTime(2020),
+                lastDate: DateTime(2025),
+              );
+              if (picked != null) {
+                setState(() {
+                  selectedDate = picked;
+                  _updateFilteredData();
+                });
+              }
+            },
+            child: Text("${selectedDate.toLocal()}".split(' ')[0]),
           ),
-        ),
+        ],
       ),
     );
   }
