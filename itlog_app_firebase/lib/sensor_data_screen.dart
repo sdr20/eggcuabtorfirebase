@@ -22,39 +22,38 @@ class SensorDataScreen extends StatelessWidget {
               _buildContainer(
                 context,
                 'Humidity',
+                Icons.water_drop,
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => HumidityLogScreen()),
                 ),
-                _buildDigitalGauge(
-                  context,
-                  'Humidity',
-                  provider.humidity,
-                  provider.maxHumidity,
-                ),
+                provider.humidity,
+                provider.maxHumidity,
+                dangerThreshold: null,
               ),
               SizedBox(height: 16),
               _buildContainer(
                 context,
                 'Temperature',
+                Icons.thermostat,
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => TemperatureLogScreen()),
                 ),
-                _buildDigitalGauge(
-                  context,
-                  'Temperature',
-                  provider.temperature,
-                  50.0,
-                  dangerThreshold: 39.0,
-                ),
+                provider.temperature,
+                provider.maxTemperature,
+                dangerThreshold: 39.0,
               ),
               SizedBox(height: 16),
               _buildContainer(
                 context,
                 'Swing Time',
+                Icons.timer,
                 null,
-                _buildSlider(context, provider),
+                null,
+                null,
+                isSlider: true,
+                provider: provider,
               ),
             ],
           ),
@@ -63,41 +62,53 @@ class SensorDataScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildContainer(BuildContext context, String title, VoidCallback? onTap, Widget child) {
+  Widget _buildContainer(BuildContext context, String title, IconData icon, VoidCallback? onTap, double? value, double? max, {double? dangerThreshold, bool isSlider = false, SensorDataProvider? provider}) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10.0),
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.5),
-              spreadRadius: 5,
-              blurRadius: 7,
-              offset: Offset(0, 3),
-            ),
-          ],
+      child: Card(
+        elevation: 5,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12.0),
         ),
-        padding: EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              title,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        child: Container(
+          padding: EdgeInsets.all(20.0),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12.0),
+            gradient: LinearGradient(
+              colors: [Colors.white, Colors.grey[200]!],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            SizedBox(height: 8),
-            child,
-          ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: Colors.blue, size: 24),
+                  SizedBox(width: 8),
+                  Text(
+                    title,
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              SizedBox(height: 8),
+              if (isSlider)
+                _buildSlider(context, provider!)
+              else
+                _buildDigitalGauge(context, value!, max!, dangerThreshold),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildDigitalGauge(BuildContext context, String label, double value, double max, {double? dangerThreshold}) {
+  Widget _buildDigitalGauge(BuildContext context, double value, double max, double? dangerThreshold) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
           width: 160,
@@ -158,7 +169,7 @@ class SensorDataScreen extends StatelessWidget {
       children: [
         Text(
           '${provider.motorOperationTime.toStringAsFixed(1)} hours',
-          style: TextStyle(fontSize: 14),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         ),
         Slider(
           value: provider.motorOperationTime,
@@ -169,6 +180,8 @@ class SensorDataScreen extends StatelessWidget {
           onChanged: (val) {
             provider.updateMotorOperationTime(val);
           },
+          activeColor: Colors.blue,
+          inactiveColor: Colors.grey[300],
         ),
       ],
     );

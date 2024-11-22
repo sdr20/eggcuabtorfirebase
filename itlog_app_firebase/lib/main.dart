@@ -3,11 +3,17 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'sensor_data_provider.dart';
 import 'home_screen.dart';
-
+import 'biometric_auth.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Firebase
+  await _initializeFirebase();
+
+  runApp(MyApp());
+}
+
+Future<void> _initializeFirebase() async {
   try {
     if (Firebase.apps.isEmpty) {
       await Firebase.initializeApp(
@@ -27,8 +33,6 @@ Future<void> main() async {
   } catch (e) {
     print('Error initializing Firebase: $e');
   }
-
-  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -44,15 +48,19 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           primarySwatch: Colors.blue,
           visualDensity: VisualDensity.adaptivePlatformDensity,
-          textTheme: TextTheme(
-            displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
-            titleLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
-            titleMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black54),
-            bodyMedium: TextStyle(fontSize: 16, color: Colors.black87),
-          ),
+          textTheme: _buildTextTheme(),
         ),
-        home: HomeScreen(),
+        home: BiometricAuth(),
       ),
+    );
+  }
+
+  TextTheme _buildTextTheme() {
+    return TextTheme(
+      displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
+      titleLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
+      titleMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black54),
+      bodyMedium: TextStyle(fontSize: 16, color: Colors.black87),
     );
   }
 }

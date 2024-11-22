@@ -15,7 +15,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
-      print("Selected index: $index");  // Debugging output
+      print("Selected index: $index"); // Debugging output
     });
   }
 
@@ -56,6 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
         currentIndex: _selectedIndex, // The currently selected index
         selectedItemColor: Colors.blueAccent,
+        unselectedItemColor: Colors.black54, // Added unselected item color for better UX
         onTap: _onItemTapped, // Handle taps
       ),
     );

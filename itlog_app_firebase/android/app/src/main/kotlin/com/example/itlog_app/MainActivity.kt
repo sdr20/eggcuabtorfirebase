@@ -1,7 +1,6 @@
 package com.example.itlog_app
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity() {
-    // Add any necessary code here
+class MainActivity: FlutterFragmentActivity() {
 }

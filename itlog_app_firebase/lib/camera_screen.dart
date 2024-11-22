@@ -16,7 +16,7 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   void initState() {
     super.initState();
-    _imagesFuture = _fetchImages(); // Initialize the future in initState
+    _imagesFuture = _fetchImages(); // Fetch images on initialization
   }
 
   Future<List<Map<String, dynamic>>> _fetchImages() async {
@@ -53,7 +53,9 @@ class _CameraScreenState extends State<CameraScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Gallery'),
+        title: const Text('Gallery'),
+        centerTitle: true,
+        backgroundColor: Colors.deepPurple,
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _imagesFuture,
@@ -104,9 +106,7 @@ class _CameraScreenState extends State<CameraScreen> {
                                 );
                               },
                               scrollPhysics: BouncingScrollPhysics(),
-                              backgroundDecoration: BoxDecoration(
-                                color: Colors.black,
-                              ),
+                              backgroundDecoration: BoxDecoration(color: Colors.black),
                               pageController: PageController(initialPage: imageDetails.indexOf(details)),
                             ),
                             Positioned(
@@ -117,7 +117,7 @@ class _CameraScreenState extends State<CameraScreen> {
                                 color: Colors.black54,
                                 padding: EdgeInsets.all(16),
                                 child: Text(
-                                  formattedDate, // Display the date
+                                  formattedDate,
                                   style: TextStyle(color: Colors.white, fontSize: 16),
                                   textAlign: TextAlign.center,
                                 ),
@@ -130,27 +130,43 @@ class _CameraScreenState extends State<CameraScreen> {
                   },
                   child: Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                       image: DecorationImage(
                         image: CachedNetworkImageProvider(url),
                         fit: BoxFit.cover,
                       ),
-                    ),
-                    child: Container(
-                      alignment: Alignment.bottomLeft,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        gradient: LinearGradient(
-                          colors: [Colors.black.withOpacity(0.5), Colors.black.withOpacity(0.1)],
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 8,
+                          offset: Offset(0, 4),
                         ),
-                      ),
-                      padding: EdgeInsets.all(8),
-                      child: Text(
-                        '$filename\n$formattedDate', // Display date
-                        style: TextStyle(color: Colors.white, fontSize: 14),
-                        overflow: TextOverflow.ellipsis,
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Stack(
+                        alignment: Alignment.bottomLeft,
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [Colors.black54, Colors.transparent],
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text(
+                              '$filename\n$formattedDate',
+                              style: TextStyle(color: Colors.white, fontSize: 12),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

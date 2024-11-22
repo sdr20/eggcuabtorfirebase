@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'dart:async';
 import 'package:provider/provider.dart';
-import 'batch_analytics_screen.dart'; // Ensure correct import for BatchAnalyticsScreen
-import 'sensor_data_provider.dart'; // Import the provider for sensor data
-import 'egg_batch.dart'; // Correct import for EggBatch
+import 'batch_analytics_screen.dart';
+import 'sensor_data_provider.dart';
+import 'egg_batch.dart';
 
 class EggBatchesScreen extends StatefulWidget {
   @override
@@ -27,12 +27,18 @@ class _EggBatchesScreenState extends State<EggBatchesScreen> {
         try {
           newBatches.add(EggBatch.fromSnapshot(snapshot));
         } catch (e) {
-          print('Error parsing snapshot: $e');
+          print('Error parsing snapshot for ${snapshot.key}: $e');
         }
       }
+      
+      // Debugging output
+      print('Fetched ${newBatches.length} batches from Firebase.');
+
       setState(() {
         _batches = newBatches;
       });
+    }, onError: (error) {
+      print('Error listening for batch changes: $error');
     });
   }
 
@@ -50,15 +56,23 @@ class _EggBatchesScreenState extends State<EggBatchesScreen> {
       amount: amount,
       creationDate: DateTime.now(),
     );
-    _batchesRef.child(batchId).set(newBatch.toMap());
 
-    // Update sensor data after adding batch
+    _batchesRef.child(batchId).set(newBatch.toMap()).then((_) {
+      print('Batch added: ${newBatch.name}');
+    }).catchError((error) {
+      print('Error adding batch: $error');
+    });
+
     final sensorData = Provider.of<SensorDataProvider>(context, listen: false);
-    sensorData.startRecordingForBatch(batchId); // Start recording for the new batch
+    sensorData.startRecordingForBatch(batchId);
   }
 
   void _deleteBatch(String batchId) {
-    _batchesRef.child(batchId).remove();
+    _batchesRef.child(batchId).remove().then((_) {
+      print('Batch deleted: $batchId');
+    }).catchError((error) {
+      print('Error deleting batch: $error');
+    });
   }
 
   void _showAddBatchDialog() {
@@ -94,7 +108,6 @@ class _EggBatchesScreenState extends State<EggBatchesScreen> {
                   _addBatch(name, amount);
                   Navigator.of(context).pop();
                 } else {
-                  // Add validation message
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Please provide valid batch details.')),
                   );
@@ -116,72 +129,72 @@ class _EggBatchesScreenState extends State<EggBatchesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // title: Text('Egg Batches'),
+        title: const Text('Egg Batches'),
         actions: [
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: GestureDetector(
               onTap: _showAddBatchDialog,
               child: Container(
-                padding: EdgeInsets.all(8.0), // Padding inside the button
+                padding: EdgeInsets.all(8.0),
                 decoration: BoxDecoration(
-                  color: Colors.white, // Background color of the button
-                  borderRadius: BorderRadius.circular(8.0), // Rounded corners
+                  color: Colors.blueAccent,
+                  borderRadius: BorderRadius.circular(50.0),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.grey.withOpacity(0.5),
                       spreadRadius: 2,
                       blurRadius: 5,
-                      offset: Offset(0, 3), // Shadow position
+                      offset: Offset(0, 3),
                     ),
                   ],
                 ),
                 child: Icon(
                   Icons.add,
-                  color: Colors.blue, // Color of the add icon
+                  color: Colors.white,
                 ),
               ),
             ),
           ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: _batches.length,
-        itemBuilder: (context, index) {
-          final batch = _batches[index];
-          return Container(
-            margin: EdgeInsets.all(10.0), // Adds spacing around each batch container
-            padding: EdgeInsets.all(15.0), // Adds padding inside the container
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10.0),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.5),
-                  spreadRadius: 2,
-                  blurRadius: 5,
-                  offset: Offset(0, 3), // Changes position of the shadow
-                ),
-              ],
-            ),
-            child: ListTile(
-              title: Text(batch.name),
-              subtitle: Text('Amount: ${batch.amount}'),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => BatchAnalyticsScreen(batch: batch),
+      body: _batches.isEmpty
+          ? Center(child: Text('No batches available.'))
+          : ListView.builder(
+              itemCount: _batches.length,
+              itemBuilder: (context, index) {
+                final batch = _batches[index];
+                return Card(
+                  margin: EdgeInsets.all(10.0),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                  elevation: 5,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.all(15.0),
+                    title: Text(
+                      batch.name,
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    ),
+                    subtitle: Text(
+                      'Amount: ${batch.amount}',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => BatchAnalyticsScreen(batch: batch),
+                        ),
+                      );
+                    },
+                    trailing: IconButton(
+                      icon: Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => _deleteBatch(batch.id),
+                    ),
                   ),
                 );
               },
-              trailing: IconButton(
-                icon: Icon(Icons.delete),
-                onPressed: () => _deleteBatch(batch.id),
-              ),
             ),
-          );
-        },
-      ),
     );
   }
 }

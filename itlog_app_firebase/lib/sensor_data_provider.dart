@@ -10,8 +10,7 @@ class SensorDataProvider extends ChangeNotifier {
   double _temperature = 0.0;
   double _maxHumidity = 200.0;
   double _maxTemperature = 36.5;
-  double _motorOperationTime = 1.0;
-  bool _fanOn = false;
+  double _motorOperationTime = 1.0; // Start with 1 hour
 
   // Data storage for monthly data
   Map<String, Map<int, List<double>>> _temperatureData = {};
@@ -19,12 +18,15 @@ class SensorDataProvider extends ChangeNotifier {
 
   // Data storage for egg batches
   List<EggBatch> _eggBatches = [];
-  // Store active batches to control recording
   Set<String> _activeBatches = {};
 
   SensorDataProvider() {
-    // Using a shared method to reduce redundancy in database listeners
-    _databaseListener('sensor_data/humidity', (newValue) {
+    _initializeListeners();
+    _fetchEggBatches();
+  }
+
+  void _initializeListeners() {
+    _createDatabaseListener('sensor_data/humidity', (newValue) {
       if (_humidity != newValue) {
         _humidity = newValue;
         _addHumidityDataForCurrentMonth(_humidity);
@@ -33,7 +35,7 @@ class SensorDataProvider extends ChangeNotifier {
       }
     });
 
-    _databaseListener('sensor_data/temperature', (newValue) {
+    _createDatabaseListener('sensor_data/temperature', (newValue) {
       if (_temperature != newValue) {
         _temperature = newValue;
         _addTemperatureDataForCurrentMonth(_temperature);
@@ -42,70 +44,50 @@ class SensorDataProvider extends ChangeNotifier {
       }
     });
 
-    // Other Firebase listeners for settings and controls
-    _database.child('settings/maxHumidity').onValue.listen((event) {
-      if (event.snapshot.value != null) {
-        _maxHumidity = (event.snapshot.value as num).toDouble();
-        notifyListeners();
-      }
+    _createDatabaseListener('settings/maxHumidity', (newValue) {
+      _maxHumidity = newValue;
+      notifyListeners();
     });
 
-    _database.child('settings/maxTemperature').onValue.listen((event) {
-      if (event.snapshot.value != null) {
-        _maxTemperature = (event.snapshot.value as num).toDouble();
-        notifyListeners();
-      }
+    _createDatabaseListener('settings/maxTemperature', (newValue) {
+      _maxTemperature = newValue;
+      notifyListeners();
     });
 
-    _database.child('control/motorOperationTime').onValue.listen((event) {
-      if (event.snapshot.value != null) {
-        _motorOperationTime = (event.snapshot.value as num).toDouble();
-        notifyListeners();
-      }
+    _createDatabaseListener('control/motorOperationTime', (newValue) {
+      _setMotorOperationTimeFromMilliseconds(newValue);
     });
-
-    _database.child('control/fanOn').onValue.listen((event) {
-      if (event.snapshot.value != null) {
-        _fanOn = event.snapshot.value as bool;
-        notifyListeners();
-      }
-    });
-
-    // Fetch egg batches when initializing the provider
-    _fetchEggBatches();
   }
 
-  // Reduce redundancy by using a common database listener method
-  void _databaseListener(String path, Function(double) onValue) {
+  void _createDatabaseListener(String path, Function(double) onValue) {
     _database.child(path).onValue.listen((event) {
       if (event.snapshot.value != null) {
         final newValue = (event.snapshot.value as num).toDouble();
         onValue(newValue);
       }
+    }).onError((error) {
+      _logError('Error listening to $path', error);
     });
   }
 
-  // Fetch egg batches from Firebase
   void _fetchEggBatches() {
     _database.child('egg_batches').onValue.listen((event) {
       if (event.snapshot.value != null) {
         final Map<dynamic, dynamic> batchesMap = event.snapshot.value as Map<dynamic, dynamic>;
-
         _eggBatches.clear();
 
         batchesMap.forEach((key, value) {
           final batchData = value as Map<dynamic, dynamic>;
-
           if (batchData['creationDate'] != null) {
             final String id = batchData['id']?.toString() ?? 'Unknown';
             final String name = batchData['name']?.toString() ?? 'Unnamed Batch';
-            final int amount = batchData['amount'] != null ? batchData['amount'] as int : 0;
+            final int amount = batchData['amount'] as int? ?? 0;
 
             DateTime creationDate;
             try {
               creationDate = DateTime.parse(batchData['creationDate'].toString());
             } catch (e) {
-              print('Invalid date format for batch $id: $e');
+              _logError('Invalid date format for batch $id', e);
               creationDate = DateTime.now();
             }
 
@@ -117,83 +99,85 @@ class SensorDataProvider extends ChangeNotifier {
             );
             _eggBatches.add(eggBatch);
           } else {
-            print('Batch $key does not have a creationDate and was skipped.');
+            _logError('Batch $key does not have a creationDate and was skipped.', null);
           }
         });
 
         notifyListeners();
+      } else {
+        _logError('No egg batches found.', null);
       }
+    }).onError((error) {
+      _logError('Error fetching egg batches', error);
     });
   }
 
-  // Getters for the current values
+  // Getters for current values
   double get humidity => _humidity;
   double get temperature => _temperature;
   double get maxHumidity => _maxHumidity;
   double get maxTemperature => _maxTemperature;
   double get motorOperationTime => _motorOperationTime;
-  bool get fanOn => _fanOn;
 
   // Getter to retrieve the egg batches
   List<EggBatch> get eggBatches => _eggBatches;
+
+  // Getter for active batches
+  Set<String> get activeBatches => _activeBatches;
 
   // Get batch by id safely (returns null if not found)
   EggBatch? getBatchById(String id) {
     try {
       return _eggBatches.firstWhere((batch) => batch.id == id);
     } catch (e) {
-      print('Batch not found for ID: $id');
+      _logError('Batch not found for ID: $id', e);
       return null;
     }
   }
 
-  // **NEW**: Start recording for a specific batch
+  // Start recording for a specific batch
   void startRecordingForBatch(String batchId) {
-    print('Started recording for batch: $batchId');
     _activeBatches.add(batchId);
     _storeBatchDataForToday();
   }
 
-  // **NEW**: Stop recording for a specific batch
+  // Stop recording for a specific batch
   void stopRecordingForBatch(String batchId) {
-    print('Stopped recording for batch: $batchId');
     _activeBatches.remove(batchId);
   }
 
   // Update methods for settings and controls
   void updateMaxHumidity(double value) {
     _maxHumidity = value;
-    _database.child('settings/maxHumidity').set(value).then((_) {
-      notifyListeners();
-    }).catchError((error) {
-      print('Error setting max humidity: $error');
-    });
+    _updateSetting('settings/maxHumidity', value);
   }
 
   void updateMaxTemperature(double value) {
     _maxTemperature = value;
-    _database.child('settings/maxTemperature').set(value).then((_) {
-      notifyListeners();
-    }).catchError((error) {
-      print('Error setting max temperature: $error');
-    });
+    _updateSetting('settings/maxTemperature', value);
   }
 
   void updateMotorOperationTime(double value) {
-    _motorOperationTime = value;
-    _database.child('control/motorOperationTime').set(value).then((_) {
-      notifyListeners();
-    }).catchError((error) {
-      print('Error setting motor operation time: $error');
-    });
+    if (value >= 0 && value <= 12) {
+      // Convert from hours back to milliseconds for storage
+      _motorOperationTime = value;
+      _updateSetting('control/motorOperationTime', value * 1000 * 60 * 60); // Convert to milliseconds
+    }
   }
 
-  void updateFanOn(bool value) {
-    _fanOn = value;
-    _database.child('control/fanOn').set(value).then((_) {
+  void _setMotorOperationTimeFromMilliseconds(double milliseconds) {
+    _motorOperationTime = milliseconds / (1000 * 60 * 60); // Convert to hours
+    if (_motorOperationTime > 12) {
+      _motorOperationTime = 12; // Cap to max value
+    }
+    notifyListeners();
+  }
+
+  void _updateSetting(String path, double value) {
+    _database.child(path).set(value).then((_) {
       notifyListeners();
     }).catchError((error) {
-      print('Error setting fan status: $error');
+      _logError('Error setting $path', error);
     });
   }
 
@@ -205,8 +189,6 @@ class SensorDataProvider extends ChangeNotifier {
     _temperatureData.putIfAbsent(currentMonth, () => {});
     _temperatureData[currentMonth]!.putIfAbsent(currentYear, () => []);
     _temperatureData[currentMonth]![currentYear]!.add(temp);
-
-    print('Added temperature data: $temp for $currentMonth/$currentYear');
   }
 
   // Add humidity data to the current month
@@ -217,8 +199,6 @@ class SensorDataProvider extends ChangeNotifier {
     _humidityData.putIfAbsent(currentMonth, () => {});
     _humidityData[currentMonth]!.putIfAbsent(currentYear, () => []);
     _humidityData[currentMonth]![currentYear]!.add(humid);
-
-    print('Added humidity data: $humid for $currentMonth/$currentYear');
   }
 
   // Retrieve temperature data for a specific month and year
@@ -231,105 +211,71 @@ class SensorDataProvider extends ChangeNotifier {
     return _humidityData[month]?[year] ?? [];
   }
 
-  // **NEW: Retrieve historical temperature data for a specific batch**
+  // Retrieve historical temperature data for a specific batch
   Future<List<double>> getBatchTemperatureData(String batchId, {int limit = 30}) async {
-    try {
-      final snapshot = await _database.child('batch_data/$batchId/temperature')
-          .orderByKey().limitToLast(limit).get();
-      if (snapshot.exists && snapshot.value is Map<dynamic, dynamic>) {
-        final dataMap = snapshot.value as Map<dynamic, dynamic>;
-        return dataMap.values.map((value) => (value as num).toDouble()).toList();
-      }
-    } catch (error) {
-      _logError('Error retrieving temperature data', error);
-    }
-    return [];
+    return await _retrieveBatchData(batchId, 'temperature');
   }
 
-  // **NEW: Retrieve historical humidity data for a specific batch**
+  // Retrieve historical humidity data for a specific batch
   Future<List<double>> getBatchHumidityData(String batchId, {int limit = 30}) async {
+    return await _retrieveBatchData(batchId, 'humidity');
+  }
+
+  Future<List<double>> _retrieveBatchData(String batchId, String dataType, {int limit = 30}) async {
     try {
-      final snapshot = await _database.child('batch_data/$batchId/humidity')
+      final snapshot = await _database.child('batch_data/$batchId/$dataType')
           .orderByKey().limitToLast(limit).get();
       if (snapshot.exists && snapshot.value is Map<dynamic, dynamic>) {
         final dataMap = snapshot.value as Map<dynamic, dynamic>;
         return dataMap.values.map((value) => (value as num).toDouble()).toList();
       }
     } catch (error) {
-      _logError('Error retrieving humidity data', error);
+      _logError('Error retrieving $dataType data', error);
     }
     return [];
   }
 
   // Retrieve latest temperature for a specific batch
   Future<double?> getLatestBatchTemperature(String batchId) async {
-    try {
-      final snapshot = await _database.child('batch_data/$batchId/temperature')
-          .orderByKey().limitToLast(1).get();
-      if (snapshot.exists && snapshot.value is Map<dynamic, dynamic>) {
-        final dataMap = snapshot.value as Map<dynamic, dynamic>;
-        return (dataMap.values.first as num).toDouble();
-      }
-    } catch (error) {
-      _logError('Error retrieving latest temperature', error);
-    }
-    return null;
+    return await _retrieveLatestBatchData(batchId, 'temperature');
   }
 
   // Retrieve latest humidity for a specific batch
   Future<double?> getLatestBatchHumidity(String batchId) async {
+    return await _retrieveLatestBatchData(batchId, 'humidity');
+  }
+
+  Future<double?> _retrieveLatestBatchData(String batchId, String dataType) async {
     try {
-      final snapshot = await _database.child('batch_data/$batchId/humidity')
-          .orderByKey().limitToLast(1).get();
-      if (snapshot.exists && snapshot.value is Map<dynamic, dynamic>) {
-        final dataMap = snapshot.value as Map<dynamic, dynamic>;
-        return (dataMap.values.first as num).toDouble();
+      final snapshot = await _database.child('batch_data/$batchId/$dataType').orderByKey().limitToLast(1).get();
+      if (snapshot.exists) {
+        final latestData = (snapshot.value as Map<dynamic, dynamic>).values.first;
+        return (latestData as num).toDouble();
       }
     } catch (error) {
-      _logError('Error retrieving latest humidity', error);
+      _logError('Error retrieving latest $dataType', error);
     }
     return null;
   }
 
-  // Store today's batch data in the database
-  void _storeBatchDataForToday() {
-    DateTime now = DateTime.now();
-    String todayKey = '${now.year}-${now.month}-${now.day}';
-
-    for (var batch in _eggBatches) {
-      // Only store data if the batch is active
-      if (_activeBatches.contains(batch.id)) {
-        _database.child('batch_data/${batch.id}/temperature/$todayKey').set(_temperature);
-        _database.child('batch_data/${batch.id}/humidity/$todayKey').set(_humidity);
-        print('Stored data for batch ${batch.id}: Temperature: $_temperature, Humidity: $_humidity');
-      }
-    }
-  }
-
-  // Prune old data older than 30 days
-  void _pruneOldData() {
-    final DateTime now = DateTime.now();
-    final DateTime cutoffDate = now.subtract(Duration(days: 30));
-
-    _temperatureData.removeWhere((month, yearMap) {
-      yearMap.removeWhere((year, data) {
-        return year < cutoffDate.year || (year == cutoffDate.year && int.parse(month) < cutoffDate.month);
-      });
-      return yearMap.isEmpty;
-    });
-
-    _humidityData.removeWhere((month, yearMap) {
-      yearMap.removeWhere((year, data) {
-        return year < cutoffDate.year || (year == cutoffDate.year && int.parse(month) < cutoffDate.month);
-      });
-      return yearMap.isEmpty;
-    });
-
-    print('Pruned old data older than 30 days.');
-  }
-
-  // Error logging utility
+  // Log errors for debugging
   void _logError(String message, dynamic error) {
     print('$message: $error');
+  }
+
+  // Store batch data for today
+  void _storeBatchDataForToday() {
+    final String today = DateTime.now().toIso8601String().split('T')[0];
+
+    for (String batchId in _activeBatches) {
+      _database.child('batch_data/$batchId/$today').set({
+        'temperature': _temperature,
+        'humidity': _humidity,
+      }).then((_) {
+        print('Stored batch data for $batchId on $today');
+      }).catchError((error) {
+        _logError('Error storing batch data for $batchId', error);
+      });
+    }
   }
 }
